@@ -1,34 +1,45 @@
 package cluster.start
 
-import org.apache.log4j.Logger
-import org.apache.log4j.spi.LoggerFactory
 import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.servlet.ServletHandler
+import org.slf4j.LoggerFactory
+import servlet.HelloWorldServlet
 
 /**
   * Created by wenliu2 on 11/10/17.
   */
 
 object ServerBootstrap {
-    val logger = Logger.getLogger(ServerBootstrap.getClass)
-    def main(args: Array[String]): Unit = {
-        if ( args.length != 1 ){
-            val className = ServerBootstrap.getClass.getCanonicalName
-            logger.error(
-                s"""Usage: ${className} port.
+    val logger = LoggerFactory.getLogger(ServerBootstrap.getClass)
+    def main(args: Array[String]): Unit =
+        if ( args.length != 1 ) usageAndExit() else startServer(args(0))
+
+    //print usage and exit with -1
+    def usageAndExit() {
+        val className = ServerBootstrap.getClass.getCanonicalName
+        logger.error(
+            s"""Usage: ${className} port.
                 """.stripMargin)
-            System.exit(-1)
-        }else{
-            startServer(args(0))
-        }
+        System.exit(-1)
     }
 
-    def startServer(port: String): Unit ={
+    def startServer(port: String): Unit = {
+        //startClusterStatus()
+        startJettyServer(port)
+    }
+
+    // start embbed jetty server.
+    def startJettyServer(port: String): Unit ={
         val jettyServer = new Server(port.toInt)
 
-        logger.debug("start server")
+        val handler = new ServletHandler();
+        jettyServer.setHandler(handler)
+
+        handler.addServletWithMapping(classOf[HelloWorldServlet], "/hello")
+
         jettyServer.start()
         jettyServer.join()
-
     }
-
 }
+
+
