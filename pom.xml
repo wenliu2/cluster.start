@@ -53,6 +53,7 @@
             <version>1.7.25</version>
         </dependency>
     </dependencies>
+    <!--
     <repositories>
         <repository>
             <id>hortonworks</id>
@@ -73,6 +74,7 @@
             </releases>
         </repository>
     </repositories>
+    -->
 
     <build>
         <plugins>
