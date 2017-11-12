@@ -1,5 +1,7 @@
 package cluster.start
 
+import java.net.InetAddress
+
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.ServletHandler
 import org.slf4j.LoggerFactory
@@ -24,8 +26,16 @@ object ServerBootstrap {
     }
 
     def startServer(port: String): Unit = {
-        //startClusterStatus()
+        startClusterStatus(port)
         startJettyServer(port)
+    }
+
+    /**
+      *
+      * @param port
+      */
+    def startClusterStatus(port: String) = {
+        ClusterStatus.init(NodeConfig(s"nodeId-${port}", port))
     }
 
     // start embbed jetty server.
