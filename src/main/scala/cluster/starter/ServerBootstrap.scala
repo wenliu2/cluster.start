@@ -1,11 +1,10 @@
-package cluster.start
-
-import java.net.InetAddress
+package cluster.starter
 
 import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.ServletHandler
 import org.slf4j.LoggerFactory
 import servlet.HelloWorldServlet
+import cluster._
 
 /**
   * Created by wenliu2 on 11/10/17.
