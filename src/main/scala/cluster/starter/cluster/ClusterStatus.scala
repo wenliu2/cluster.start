@@ -25,6 +25,8 @@ object ClusterStatus {
 class ClusterStatus(config: NodeConfig) extends LeaderLatchListener {
     final val logger = LoggerFactory.getLogger(ClusterStatus.getClass)
 
+    def getConfig = config
+
     val client: CuratorFramework = CuratorFrameworkFactory.newClient(
         config.zkConnection,
         //set session expiration time to 5 seconds, by default, the range defined in server is [4, 40] seconds.
@@ -34,7 +36,8 @@ class ClusterStatus(config: NodeConfig) extends LeaderLatchListener {
         new ExponentialBackoffRetry(1000, 3))
     private var leaderLatch: LeaderLatch = null
     private var discovery: ServiceDiscovery[InstanceDetails] = null
-    private var serviceInstance: ServiceInstance[InstanceDetails] = null
+    private var masterServiceInstance: ServiceInstance[InstanceDetails] = null
+    private var slaveServiceInstance: ServiceInstance[InstanceDetails] = null
     private val payload = new InstanceDetails(false)
 
     private final val serializer = new JsonInstanceSerializer(classOf[InstanceDetails])
@@ -48,25 +51,34 @@ class ClusterStatus(config: NodeConfig) extends LeaderLatchListener {
         val serverIp = serverHost.getHostAddress
         logger.info(s"server ip is ${serverIp}")
 
-        this.serviceInstance = ServiceInstance.builder[InstanceDetails]()
+        this.masterServiceInstance = ServiceInstance.builder[InstanceDetails]()
             .uriSpec(new UriSpec("{scheme}://{address}:{port}"))
             .address(serverIp)
             .port(config.port.toInt)
-            .name("helloService")
+            .name("masterService")
+            .payload(payload)
+            .build()
+
+        this.slaveServiceInstance = ServiceInstance.builder[InstanceDetails]()
+            .uriSpec(new UriSpec("{scheme}://{address}:{port}"))
+            .address(serverIp)
+            .port(config.port.toInt)
+            .name("slaveService")
             .payload(payload)
             .build()
 
         discovery = ServiceDiscoveryBuilder.builder(classOf[InstanceDetails])
             .basePath("service-discovery")
             .client(client)
-            .thisInstance(this.serviceInstance)
+            //.thisInstance(this.serviceInstance)
             .watchInstances(true)
             .serializer(serializer)
             .build()
 
-
-
         discovery.start()
+
+        discovery.registerService(this.slaveServiceInstance)
+
         leaderLatch = new LeaderLatch(client, config.latchPath, config.nodeId)
         leaderLatch.addListener(this)
         leaderLatch.start
@@ -77,13 +89,16 @@ class ClusterStatus(config: NodeConfig) extends LeaderLatchListener {
     override def isLeader = {
         logger.info(s"${config.nodeId} is leader now.")
         payload.setLeader(true)
-        discovery.updateService(serviceInstance)
+        //discovery.updateService(serviceInstance)
+        discovery.registerService(this.masterServiceInstance)
+        discovery.unregisterService(this.slaveServiceInstance)
     }
 
     override def notLeader() = {
         logger.info(s"${config.nodeId} is not a leader.")
         payload.setLeader(false)
-        discovery.updateService(serviceInstance)
+        discovery.registerService(this.slaveServiceInstance)
+        discovery.unregisterService(this.masterServiceInstance)
     }
 
     def close(): Unit ={
