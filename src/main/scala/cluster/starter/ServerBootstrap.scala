@@ -1,7 +1,9 @@
 package cluster.starter
 
+import java.util.concurrent.Executors
+
 import org.eclipse.jetty.server.Server
-import org.eclipse.jetty.servlet.ServletHandler
+import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHandler, ServletHolder}
 import org.slf4j.LoggerFactory
 import servlet.HelloWorldServlet
 import cluster._
@@ -10,44 +12,37 @@ import cluster._
   * Created by wenliu2 on 11/10/17.
   */
 
-object ServerBootstrap {
+case class ServerArg(port: Int) extends BaseArgument(port)
+object ServerBootstrap extends BaseBootstrap[ServerArg]{
     val logger = LoggerFactory.getLogger(ServerBootstrap.getClass)
+
+    override def getLogger = logger
+    //private var jettyServer: Server = null
+    /*
     def main(args: Array[String]): Unit =
         if ( args.length != 1 ) usageAndExit() else startServer(args(0))
+    */
 
-    //print usage and exit with -1
-    def usageAndExit() {
+    override def parseArgument(args: Array[String]) = {
         val className = ServerBootstrap.getClass.getCanonicalName
-        logger.error(
-            s"""Usage: ${className} port.
-                """.stripMargin)
-        System.exit(-1)
+        val msg = s"""Usage: ${className} port.""".stripMargin
+        if ( args.length != 1 ) Left(msg) else Right(ServerArg(args(0).toInt))
     }
 
-    def startServer(port: String): Unit = {
-        startClusterStatus(port)
-        startJettyServer(port)
+    override def startCluster() = {
+        ClusterStatus.init(NodeConfig(s"nodeId-${this.arguments.port}", this.arguments.port))
+        addShutdownHook{
+            ClusterStatus.getStatus.close()
+        }
     }
 
-    /**
-      *
-      * @param port
-      */
-    def startClusterStatus(port: String) = {
-        ClusterStatus.init(NodeConfig(s"nodeId-${port}", port))
-    }
+    override def addServletWithMapping(handler: ServletContextHandler) = {
+        val infoServletHolder = new ServletHolder("helloworld", classOf[HelloWorldServlet])
+        handler.setContextPath("/")
 
-    // start embbed jetty server.
-    def startJettyServer(port: String): Unit ={
-        val jettyServer = new Server(port.toInt)
+        handler.addServlet(infoServletHolder, "/hello")
+        handler.getServletContext.setAttribute("org.eclipse.jetty.server.Executor", Executors.newCachedThreadPool())
 
-        val handler = new ServletHandler();
-        jettyServer.setHandler(handler)
-
-        handler.addServletWithMapping(classOf[HelloWorldServlet], "/hello")
-
-        jettyServer.start()
-        jettyServer.join()
     }
 }
 

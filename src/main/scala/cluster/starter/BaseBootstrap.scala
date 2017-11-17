@@ -4,11 +4,15 @@ import org.eclipse.jetty.server.Server
 import org.eclipse.jetty.servlet.{ServletContextHandler, ServletHandler}
 import org.slf4j.{Logger, LoggerFactory}
 
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+
 /**
   * Created by wenliu2 on 11/13/17.
   */
 abstract class BaseBootstrap[ARG <: BaseArgument] {
     private var _arguments: ARG = null.asInstanceOf[ARG]
+    val shutdownCodes = mutable.Buffer[() => Unit]()
 
     def getLogger: Logger
 
@@ -20,6 +24,7 @@ abstract class BaseBootstrap[ARG <: BaseArgument] {
             usageAndExit(parseResult.left.get)
         }else {
             this._arguments = parseResult.right.get
+            shutdownHook()
             startCluster()
             startServer(arguments.getPort)
         }
@@ -46,7 +51,26 @@ abstract class BaseBootstrap[ARG <: BaseArgument] {
         addServletWithMapping(handler)
 
         jettyServer.start()
+
+        addShutdownHook{
+            getLogger.info("stopping server ...")
+            jettyServer.stop()
+        }
+
         jettyServer.join()
+        getLogger.info("server started, after join.")
+    }
+
+    def addShutdownHook(code:  => Unit): Unit ={
+        shutdownCodes += ( () => code )
+    }
+
+    def shutdownHook(): Unit ={
+        Runtime.getRuntime.addShutdownHook(new Thread(){
+            override def run(): Unit = {
+                shutdownCodes.foreach{_()}
+            }
+        })
     }
 }
 

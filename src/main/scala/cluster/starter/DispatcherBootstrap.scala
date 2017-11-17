@@ -84,5 +84,12 @@ object DispatcherBootstrap extends BaseBootstrap[DispatcherArgument]{
 
         this.masterServiceProvider.start()
         this.slaveServiceProvider.start()
+
+        addShutdownHook{
+            this.masterServiceProvider.close()
+            this.slaveServiceProvider.close()
+            discovery.close()
+            client.close()
+        }
     }
 }

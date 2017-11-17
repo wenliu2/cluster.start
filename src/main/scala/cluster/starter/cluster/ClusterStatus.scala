@@ -9,7 +9,7 @@ import org.apache.curator.x.discovery.details.JsonInstanceSerializer
 import org.apache.curator.x.discovery.{ServiceDiscovery, ServiceDiscoveryBuilder, ServiceInstance, UriSpec}
 import org.slf4j.LoggerFactory
 
-case class NodeConfig(nodeId: String, port: String, latchPath: String = "/clusterstart/servers", zkConnection: String = "127.0.0.1:2181")
+case class NodeConfig(nodeId: String, port: Int, latchPath: String = "/clusterstart/servers", zkConnection: String = "127.0.0.1:2181")
 
 object ClusterStatus {
     private var clusterStatus: ClusterStatus = null
